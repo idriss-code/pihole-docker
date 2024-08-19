@@ -1,0 +1,49 @@
+# https://www.monlinux.net/2022/04/securiser-ses-dns-avec-pihole-et-dot-dns-over-tls/
+version: '3.8'
+
+networks:
+  dnsnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.10.10.32/29
+  proxy-net:
+    external: true
+
+services:
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    environment:
+      TZ: 'Europe/Paris'
+      ADMIN_EMAIL: '******@******.***'
+      WEBPASSWORD: '**************'
+      DNS1: 10.10.10.34
+      DNS2: 10.10.10.34
+      VIRTUAL_HOST: pihole.domain.tld
+    volumes:
+      - '/opt/dns/etc-pihole/:/etc/pihole/'
+      - '/opt/dns/etc-dnsmasq.d/:/etc/dnsmasq.d/'
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "80:80/tcp"
+    depends_on:
+      - dot
+    networks:
+      - proxy-net
+      - dnsnet
+    restart: always
+
+  dot:
+    image: qmcgaw/dns:latest
+    container_name: pihole-unbound-DoT
+    environment:
+      PROVIDERS: 'cloudflare'
+      CACHING: 'off'
+      BLOCK_MALICIOUS: 'on'
+    networks:
+      dnsnet:
+        ipv4_address: 10.10.10.34
+    restart: always
